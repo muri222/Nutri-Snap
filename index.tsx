@@ -469,8 +469,35 @@ const NutriSnapApp = ({ user }: { user: User }) => {
   };
   
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+        console.error('Error logging out:', error);
+        alert('Erro ao deslogar. Por favor, tente novamente.');
+    } else {
+        // Forçar a recarga da página para garantir a limpeza do estado
+        window.location.reload();
+    }
   }
+
+  const handleRemoveMeal = (dayKey: string, mealIndex: number) => {
+      setWeeklyLog(prevLog => {
+          const dayEntries = [...(prevLog[dayKey] || [])];
+          dayEntries.splice(mealIndex, 1);
+          return { ...prevLog, [dayKey]: dayEntries };
+      });
+  };
+
+  const handleMoveMeal = (dayKey: string, mealIndex: number, direction: 'up' | 'down') => {
+      setWeeklyLog(prevLog => {
+          const dayEntries = [...(prevLog[dayKey] || [])];
+          const targetIndex = direction === 'up' ? mealIndex - 1 : mealIndex + 1;
+          if (targetIndex < 0 || targetIndex >= dayEntries.length) {
+              return prevLog;
+          }
+          [dayEntries[mealIndex], dayEntries[targetIndex]] = [dayEntries[targetIndex], dayEntries[mealIndex]];
+          return { ...prevLog, [dayKey]: dayEntries };
+      });
+  };
   
   if (profileLoading) {
       return <div className="loading-container"><div className="spinner"></div><p>Carregando seus dados...</p></div>
@@ -613,7 +640,7 @@ const NutriSnapApp = ({ user }: { user: User }) => {
                       </div>
                       <div className="weekly-log-container">
                         <table className="breakdown-table weekly-log-table">
-                           <thead><tr><th>Dia</th><th>Calorias</th><th>Prot</th><th>Carb</th><th>Gord</th></tr></thead>
+                           <thead><tr><th>Dia</th><th>Calorias</th><th>Prot</th><th>Carb</th><th>Gord</th><th>Ações</th></tr></thead>
                            <tbody>
                               {daysOfWeek.map(({ key, name }) => {
                                  const dayEntries = weeklyLog[key] || [];
@@ -637,6 +664,7 @@ const NutriSnapApp = ({ user }: { user: User }) => {
                                            <td>{dayTotals.protein.toFixed(1)}g</td>
                                            <td>{dayTotals.carbs.toFixed(1)}g</td>
                                            <td>{dayTotals.fat.toFixed(1)}g</td>
+                                           <td></td>
                                         </tr>
                                         {isExpanded && (
                                             dayEntries.length > 0 ? dayEntries.map((entry, idx) => (
@@ -649,9 +677,16 @@ const NutriSnapApp = ({ user }: { user: User }) => {
                                                     <td>{entry.protein.toFixed(1)}g</td>
                                                     <td>{entry.carbs.toFixed(1)}g</td>
                                                     <td>{entry.fat.toFixed(1)}g</td>
+                                                    <td className="meal-actions-cell">
+                                                        <div className="meal-actions">
+                                                            <button onClick={(e) => { e.stopPropagation(); handleMoveMeal(key, idx, 'up'); }} disabled={idx === 0} className="move-btn" title="Mover para cima">▲</button>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleMoveMeal(key, idx, 'down'); }} disabled={idx === dayEntries.length - 1} className="move-btn" title="Mover para baixo">▼</button>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveMeal(key, idx); }} className="remove-btn" title="Remover refeição">×</button>
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             )) : (
-                                                <tr className="no-meals-row"><td colSpan={5} className="no-meals-text">Nenhuma refeição registrada.</td></tr>
+                                                <tr className="no-meals-row"><td colSpan={6} className="no-meals-text">Nenhuma refeição registrada.</td></tr>
                                             )
                                         )}
                                      </React.Fragment>

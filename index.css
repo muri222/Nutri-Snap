@@ -1,3 +1,4 @@
+
 :root {
   --primary-color: #2ecc71;
   --primary-hover: #27ae60;
@@ -673,6 +674,12 @@ header p {
     display: flex;
     align-items: center;
     flex-shrink: 0;
+}
+
+.meal-actions-cell {
+    width: 1px;
+    white-space: nowrap;
+    text-align: right;
 }
 
 .move-btn {
