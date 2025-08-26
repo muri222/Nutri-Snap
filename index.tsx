@@ -529,15 +529,20 @@ const NutriSnapApp = ({ user }: { user: User }) => {
   };
   
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-        console.error('Error logging out:', error);
-        alert('Erro ao deslogar. Por favor, tente novamente.');
-    } else {
-        // Forçar a recarga da página para garantir a limpeza do estado
-        window.location.reload();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        // Log any error to the console for debugging, but don't block the user.
+        console.error('Error logging out:', error.message);
+      }
+    } catch (e) {
+        console.error('An unexpected error occurred during logout:', e);
+    } finally {
+      // Redirect to the root of the site to force a full re-initialization.
+      // This is more reliable in some environments than a simple reload.
+      window.location.href = '/';
     }
-  }
+  };
 
   const handleRemoveMeal = (dayKey: string, mealIndex: number) => {
       setWeeklyLog(prevLog => {
@@ -589,237 +594,228 @@ const NutriSnapApp = ({ user }: { user: User }) => {
             {imageSrc && !stream && <img src={imageSrc} alt="Sua Refeição" />}
             {!stream && !imageSrc && (
                 <div className="placeholder">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.776 48.776 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" /></svg>
-                    <span>Use a câmera ou envie uma imagem</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
                 </div>
             )}
           </div>
           <canvas ref={canvasRef} style={{ display: 'none' }} />
           <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" style={{ display: 'none' }} />
+          
           <div className="controls">
-            {!stream && !imageSrc && (
-                <div className="button-group">
-                    <button onClick={handleStartCamera} className="btn btn-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4H2zm.5 2a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm9 2.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"/></svg> Iniciar Câmera</button>
-                    <button onClick={handleUploadClick} className="btn btn-primary"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg> Enviar Imagem</button>
-                </div>
+            {!analysisResult && (
+              <div className="input-group">
+                <label htmlFor="food-desc">Descrição Opcional</label>
+                <input id="food-desc" type="text" value={foodDescription} onChange={e => setFoodDescription(e.target.value)} placeholder="Ex: Prato de arroz, feijão e frango." />
+              </div>
             )}
-            {stream && <button onClick={handleTakePhoto} className="btn btn-primary">Tirar Foto</button>}
-            {imageSrc && !stream && !analysisResult && (
-                <><div className="input-group"><label htmlFor="food-description">Detalhes da refeição (opcional)</label><input id="food-description" type="text" placeholder="Ex: Arroz, feijão e bife" value={foodDescription} onChange={(e) => setFoodDescription(e.target.value)}/></div><button onClick={handleAnalyze} className="btn btn-primary" disabled={loading}>Analisar Refeição</button><button onClick={reset} className="btn btn-secondary" disabled={loading}>Nova Análise</button></>
-            )}
+            <div className="button-group">
+              {stream && <button className="btn btn-primary" onClick={handleTakePhoto}>Tirar Foto</button>}
+              {!stream && !imageSrc && <button className="btn btn-secondary" onClick={handleStartCamera}>Abrir Câmera</button>}
+              {!stream && !imageSrc && <button className="btn btn-secondary" onClick={handleUploadClick}>Enviar Imagem</button>}
+              {imageSrc && !analysisResult && <button className="btn btn-primary" onClick={handleAnalyze} disabled={loading}>Analisar</button>}
+              {(imageSrc || stream) && !analysisResult && <button className="btn btn-secondary" onClick={reset}>Cancelar</button>}
+            </div>
           </div>
-          {loading && <div className="loading"><div className="spinner"></div><p>Analisando...</p></div>}
+
+          {loading && <div className="loading"><div className="spinner"></div><p>Analisando sua refeição...</p></div>}
           {error && <div className="error">{error}</div>}
+          
           {analysisResult && (
             <div className="results">
               <h2>{analysisResult.foodName}</h2>
               <p>Peso estimado: {analysisResult.estimatedWeight}</p>
-              <div className="macros"><div className="macro-card calories"><h3>Calorias</h3><span className="value">{Math.round(analysisResult.calories)} <small>kcal</small></span></div><div className="macro-card"><h3>Proteína</h3><span className="value">{analysisResult.protein.toFixed(1)} <small>g</small></span></div><div className="macro-card"><h3>Carboidratos</h3><span className="value">{analysisResult.carbs.toFixed(1)} <small>g</small></span></div><div className="macro-card"><h3>Gorduras</h3><span className="value">{analysisResult.fat.toFixed(1)} <small>g</small></span></div></div>
-              {analysisResult.ingredients && analysisResult.ingredients.length > 0 && (
-                <div className="detailed-breakdown">
-                  <h4>Detalhes por Ingrediente</h4>
-                  <table className="breakdown-table">
-                    <thead><tr><th>Ingrediente</th><th>Cal</th><th>Prot</th><th>Carb</th><th>Gord</th><th></th></tr></thead>
-                    <tbody>
-                      {analysisResult.ingredients.map((ing, i) => (
-                        <tr key={i}>
-                          <td>{ing.name}</td>
-                          <td>{Math.round(ing.calories)}</td>
-                          <td>{ing.protein.toFixed(1)}</td>
-                          <td>{ing.carbs.toFixed(1)}</td>
-                          <td>{ing.fat.toFixed(1)}</td>
-                          <td><button onClick={() => handleRemoveIngredient(i)} className="remove-btn" title="Remover ingrediente">×</button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <div className="controls">
-                <button onClick={handleAddMealToLog} className="btn btn-primary btn-add-to-log">Adicionar ao Diário</button>
-                <button onClick={reset} className="btn btn-secondary">Nova Análise</button>
+              <div className="macros">
+                <div className="macro-card calories"><div className="value">{Math.round(analysisResult.calories)}</div><h3>calorias</h3></div>
+                <div className="macro-card"><div className="value">{Math.round(analysisResult.protein)}g</div><h3>Proteínas</h3></div>
+                <div className="macro-card"><div className="value">{Math.round(analysisResult.carbs)}g</div><h3>Carbs</h3></div>
+                <div className="macro-card"><div className="value">{Math.round(analysisResult.fat)}g</div><h3>Gorduras</h3></div>
               </div>
+              <div className="detailed-breakdown">
+                <h4>Detalhes dos Ingredientes</h4>
+                <table className="breakdown-table">
+                  <thead><tr><th>Ingrediente</th><th>Cal</th><th>Prot</th><th>Carb</th><th>Gord</th><th></th></tr></thead>
+                  <tbody>{analysisResult.ingredients.map((ing, i) => <tr key={i}><td>{ing.name}</td><td>{Math.round(ing.calories)}</td><td>{Math.round(ing.protein)}g</td><td>{Math.round(ing.carbs)}g</td><td>{Math.round(ing.fat)}g</td><td><button className="remove-btn" onClick={() => handleRemoveIngredient(i)}>&times;</button></td></tr>)}</tbody>
+                </table>
+              </div>
+              <button className="btn btn-primary btn-add-to-log" onClick={handleAddMealToLog}>Adicionar ao Diário</button>
+              <div className="controls"><button className="btn btn-secondary" onClick={reset}>Analisar Outra</button></div>
             </div>
           )}
         </>
       )}
-      
+
       {activeTab === 'bmr' && (
         <div className="bmr-calculator">
-            <form className="bmr-form" onSubmit={handleCalculateBMR}>
-              <div className="input-group">
-                <label>Gênero</label>
-                <div className="radio-group">
-                    <label><input type="radio" name="gender" value="male" checked={gender === 'male'} onChange={(e) => setGender(e.target.value)}/> Masculino</label>
-                    <label><input type="radio" name="gender" value="female" checked={gender === 'female'} onChange={(e) => setGender(e.target.value)}/> Feminino</label>
-                </div>
+          <form className="bmr-form" onSubmit={handleCalculateBMR}>
+            <div className="input-group">
+              <label>Gênero</label>
+              <div className="radio-group">
+                <label><input type="radio" name="gender" value="male" checked={gender === 'male'} onChange={e => setGender(e.target.value)} /> Masculino</label>
+                <label><input type="radio" name="gender" value="female" checked={gender === 'female'} onChange={e => setGender(e.target.value)} /> Feminino</label>
               </div>
-              <div className="form-grid">
-                <div className="input-group"><label htmlFor="age">Idade</label><input id="age" type="number" value={age} onChange={(e) => setAge(e.target.value)} placeholder="ex: 25" required/></div>
-                <div className="input-group"><label htmlFor="weight">Peso (kg)</label><input id="weight" type="number" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="ex: 70" required/></div>
-                <div className="input-group"><label htmlFor="height">Altura (cm)</label><input id="height" type="number" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="ex: 175" required/></div>
+            </div>
+            <div className="form-grid">
+              <div className="input-group"><label htmlFor="age">Idade</label><input id="age" type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="ex: 25" /></div>
+              <div className="input-group"><label htmlFor="weight">Peso (kg)</label><input id="weight" type="number" value={weight} onChange={e => setWeight(e.target.value)} placeholder="ex: 70" /></div>
+              <div className="input-group"><label htmlFor="height">Altura (cm)</label><input id="height" type="number" value={height} onChange={e => setHeight(e.target.value)} placeholder="ex: 175" /></div>
+            </div>
+            <div className="input-group">
+                <label htmlFor="activity">Nível de Atividade</label>
+                <select id="activity" value={activityLevel} onChange={e => setActivityLevel(e.target.value)}><option value="1.2">Sedentário (pouco ou nenhum exercício)</option><option value="1.375">Levemente ativo (exercício leve 1-3 dias/semana)</option><option value="1.55">Moderadamente ativo (exercício moderado 3-5 dias/semana)</option><option value="1.725">Muito ativo (exercício intenso 6-7 dias/semana)</option><option value="1.9">Extremamente ativo (trabalho físico intenso, etc)</option></select>
+            </div>
+            <div className="input-group">
+                <label htmlFor="rate">Ritmo de Alteração de Peso (kg/semana)</label>
+                <select id="rate" value={weightChangeRate} onChange={e => setWeightChangeRate(e.target.value)}><option value="0.25">0.25 kg</option><option value="0.5">0.5 kg</option><option value="0.75">0.75 kg</option><option value="1">1 kg</option></select>
+            </div>
+            <button type="submit" className="btn btn-primary">Calcular Metas</button>
+          </form>
+          {error && <div className="error" style={{marginTop: '1rem'}}>{error}</div>}
+          {bmrResults && (
+            <div className="results bmr-results">
+              <h2>Suas Metas Diárias</h2>
+              <p>Com base nos seus dados, aqui estão suas metas de calorias estimadas para diferentes objetivos.</p>
+              <div className="macros">
+                <div className="goal-card"><div className="value">{bmrResults.lose}</div><h3>Emagrecer</h3><p className="goal-desc">Déficit calórico para perda de peso gradual.</p></div>
+                <div className="goal-card"><div className="value">{bmrResults.maintain}</div><h3>Manter Peso</h3><p className="goal-desc">Calorias para manter seu peso atual.</p></div>
+                <div className="goal-card"><div className="value">{bmrResults.gain}</div><h3>Ganhar Massa</h3><p className="goal-desc">Superávit calórico para ganho de massa muscular.</p></div>
               </div>
-              <div className="input-group"><label htmlFor="activityLevel">Nível de Atividade</label><select id="activityLevel" value={activityLevel} onChange={(e) => setActivityLevel(e.target.value)}><option value="1.2">Sedentário (pouco ou nenhum exercício)</option><option value="1.375">Levemente ativo (exercício 1-3 dias/sem.)</option><option value="1.55">Moderadamente ativo (exercício 3-5 dias/sem.)</option><option value="1.725">Muito ativo (exercício 6-7 dias/sem.)</option><option value="1.9">Extremamente ativo (trabalho físico/exercício intenso)</option></select></div>
-              <div className="input-group"><label htmlFor="weightChangeRate">Ritmo de Alteração de Peso (kg/semana)</label><select id="weightChangeRate" value={weightChangeRate} onChange={(e) => setWeightChangeRate(e.target.value)}><option value="0.25">0.25 kg / semana</option><option value="0.5">0.5 kg / semana</option><option value="0.75">0.75 kg / semana</option><option value="1">1 kg / semana</option></select></div>
-              <button type="submit" className="btn btn-primary">Calcular Metas</button>
-            </form>
-            
-            {bmrResults && (
-              <div className="results bmr-results">
-                  <h2>Suas Metas Diárias</h2>
-                  <p>Com base em seus dados, esta é uma estimativa das calorias que você precisa consumir para atingir seus objetivos.</p>
-                  <div className="macros">
-                      <div className="macro-card goal-card"><div className="goal-desc">Para Perder Peso</div><h3>Emagrecer</h3><span className="value">{bmrResults.lose} <small>kcal</small></span></div>
-                      <div className="macro-card goal-card"><div className="goal-desc">Para Manter o Peso</div><h3>Manter</h3><span className="value">{bmrResults.maintain} <small>kcal</small></span></div>
-                      <div className="macro-card goal-card"><div className="goal-desc">Para Ganhar Peso</div><h3>Ganhar Massa</h3><span className="value">{bmrResults.gain} <small>kcal</small></span></div>
-                  </div>
-                  <p className="disclaimer">Estes valores são apenas estimativas. Consulte um profissional de saúde para um plano personalizado.</p>
-              </div>
-            )}
+              <p className="disclaimer">Estes valores são estimativas. Consulte um profissional de saúde para orientação personalizada.</p>
+            </div>
+          )}
         </div>
       )}
-      
-      {activeTab === 'weekly' && (
-          <div className="weekly-tracker">
-              {!bmrResults || !weeklyTrackerCalculations ? (
-                  <div className="placeholder-text">
-                      <p>Calcule sua TMB na aba "Calculadora TMB" para ver seu progresso semanal e metas de calorias.</p>
-                  </div>
-              ) : (
-                  <>
-                      <div className="weekly-summary-container">
-                          <div className="weekly-summary">
-                              <div className="summary-card consumed">
-                                  <h4>Consumidas na Semana</h4>
-                                  <p><strong>{Math.round(weeklyTrackerCalculations.totalWeeklyConsumed)}</strong> kcal</p>
-                              </div>
-                              <div className="summary-card remaining">
-                                  <h4>Restantes na Semana</h4>
-                                  <p><strong>{Math.round(weeklyTrackerCalculations.weeklyGoal - weeklyTrackerCalculations.totalWeeklyConsumed)}</strong> kcal</p>
-                                  <span>Meta: {weeklyTrackerCalculations.weeklyGoal} kcal</span>
-                              </div>
-                          </div>
-                      </div>
-                      
-                      <div className="daily-goal-display">
-                          <h4>Progresso do Dia</h4>
-                          <div className="progress-bars-grid">
-                              <ProgressBar label="Calorias" currentValue={weeklyTrackerCalculations.todayTotals.calories} goalValue={weeklyTrackerCalculations.dailyGoal} unit="kcal" />
-                              <ProgressBar label="Proteínas" currentValue={weeklyTrackerCalculations.todayTotals.protein} goalValue={weeklyTrackerCalculations.proteinGoal} unit="g" />
-                              <ProgressBar label="Carboidratos" currentValue={weeklyTrackerCalculations.todayTotals.carbs} goalValue={weeklyTrackerCalculations.carbsGoal} unit="g" />
-                              <ProgressBar label="Gorduras" currentValue={weeklyTrackerCalculations.todayTotals.fat} goalValue={weeklyTrackerCalculations.fatGoal} unit="g" />
-                          </div>
-                      </div>
 
-                      <div className="daily-goal-display">
-                          <h4>Sua Meta Diária</h4>
-                          <div className="input-group">
-                              <label htmlFor="goal-select">Selecione seu objetivo atual:</label>
-                              <select id="goal-select" value={selectedGoal} onChange={e => setSelectedGoal(e.target.value as Goal)}>
-                                  <option value="lose">Perder Peso ({bmrResults.lose} kcal)</option>
-                                  <option value="maintain">Manter Peso ({bmrResults.maintain} kcal)</option>
-                                  <option value="gain">Ganhar Massa ({bmrResults.gain} kcal)</option>
-                              </select>
-                          </div>
+      {activeTab === 'weekly' && (
+        <div className="weekly-tracker">
+          {!bmrResults ? (
+            <div className="placeholder-text">Calcule suas metas na aba "Calculadora TMB" para começar a acompanhar suas calorias semanais.</div>
+          ) : (
+            <>
+              <div className="weekly-summary-container">
+                  <h4>Resumo da Semana</h4>
+                  <div className="weekly-summary">
+                      <div className="summary-card consumed">
+                          <h4>Consumidas na Semana</h4>
+                          <p><strong>{Math.round(weeklyTrackerCalculations?.totalWeeklyConsumed ?? 0)}</strong> kcal</p>
+                          <span>de {Math.round(weeklyTrackerCalculations?.weeklyGoal ?? 0)} kcal</span>
                       </div>
-                      <div className="weekly-log-container">
-                        <table className="breakdown-table weekly-log-table">
-                           <thead><tr><th>Dia</th><th>Calorias</th><th>Prot</th><th>Carb</th><th>Gord</th><th>Ações</th></tr></thead>
-                           <tbody>
-                              {daysOfWeek.map(({ key, name }) => {
-                                 const dayEntries = weeklyLog[key] || [];
-                                 const dayTotals = dayEntries.reduce((acc, entry) => ({
-                                      calories: acc.calories + entry.calories,
-                                      protein: acc.protein + entry.protein,
-                                      carbs: acc.carbs + entry.carbs,
-                                      fat: acc.fat + entry.fat
-                                 }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
-                                 const dailyGoal = bmrResults[selectedGoal];
-                                 const isExpanded = !!expandedDays[key];
-                                 
-                                 return (
-                                     <React.Fragment key={key}>
-                                        <tr className="day-summary-row" onClick={() => setExpandedDays(p => ({...p, [key]: !p[key]}))}>
-                                           <td><span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>▶</span> {name}</td>
-                                           <td className="daily-calorie-cell">
-                                                {Math.round(dayTotals.calories)} 
-                                                <span className="daily-goal-text">/ {dailyGoal}</span>
-                                           </td>
-                                           <td>{dayTotals.protein.toFixed(1)}g</td>
-                                           <td>{dayTotals.carbs.toFixed(1)}g</td>
-                                           <td>{dayTotals.fat.toFixed(1)}g</td>
-                                           <td></td>
-                                        </tr>
-                                        {isExpanded && (
-                                            dayEntries.length > 0 ? dayEntries.map((entry, idx) => (
-                                                <tr key={`${key}-${idx}`} className="meal-entry-row">
-                                                    <td className="meal-info">
-                                                        <span className="meal-name">{entry.name}</span>
-                                                        <span className="meal-time">{entry.time}</span>
-                                                    </td>
-                                                    <td>{Math.round(entry.calories)}</td>
-                                                    <td>{entry.protein.toFixed(1)}g</td>
-                                                    <td>{entry.carbs.toFixed(1)}g</td>
-                                                    <td>{entry.fat.toFixed(1)}g</td>
-                                                    <td className="meal-actions-cell">
-                                                        <div className="meal-actions">
-                                                            <button onClick={(e) => { e.stopPropagation(); handleMoveMeal(key, idx, 'up'); }} disabled={idx === 0} className="move-btn" title="Mover para cima">▲</button>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleMoveMeal(key, idx, 'down'); }} disabled={idx === dayEntries.length - 1} className="move-btn" title="Mover para baixo">▼</button>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveMeal(key, idx); }} className="remove-btn" title="Remover refeição">×</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )) : (
-                                                <tr className="no-meals-row"><td colSpan={6} className="no-meals-text">Nenhuma refeição registrada.</td></tr>
-                                            )
-                                        )}
-                                     </React.Fragment>
-                                 );
-                              })}
-                           </tbody>
-                        </table>
+                       <div className="summary-card remaining">
+                          <h4>Restantes na Semana</h4>
+                          <p><strong>{Math.round((weeklyTrackerCalculations?.weeklyGoal ?? 0) - (weeklyTrackerCalculations?.totalWeeklyConsumed ?? 0))}</strong> kcal</p>
+                          <span>para sua meta</span>
                       </div>
-                  </>
-              )}
-          </div>
+                  </div>
+              </div>
+              
+              <div className="daily-goal-display">
+                <h4>Progresso do Dia</h4>
+                <div className="progress-bars-grid">
+                  <ProgressBar label="Calorias" currentValue={weeklyTrackerCalculations?.todayTotals.calories ?? 0} goalValue={weeklyTrackerCalculations?.dailyGoal ?? 0} unit="kcal" />
+                  <ProgressBar label="Proteínas" currentValue={weeklyTrackerCalculations?.todayTotals.protein ?? 0} goalValue={weeklyTrackerCalculations?.proteinGoal ?? 0} unit="g" />
+                  <ProgressBar label="Carboidratos" currentValue={weeklyTrackerCalculations?.todayTotals.carbs ?? 0} goalValue={weeklyTrackerCalculations?.carbsGoal ?? 0} unit="g" />
+                  <ProgressBar label="Gorduras" currentValue={weeklyTrackerCalculations?.todayTotals.fat ?? 0} goalValue={weeklyTrackerCalculations?.fatGoal ?? 0} unit="g" />
+                </div>
+              </div>
+            
+              <div className="weekly-log">
+                <h4>Registro Diário</h4>
+                <div className="input-group">
+                  <label htmlFor="goal-select">Meu objetivo é:</label>
+                  <select id="goal-select" value={selectedGoal} onChange={e => setSelectedGoal(e.target.value as Goal)}>
+                      <option value="lose">Emagrecer</option>
+                      <option value="maintain">Manter Peso</option>
+                      <option value="gain">Ganhar Massa</option>
+                  </select>
+                </div>
+                <table className="breakdown-table weekly-log-table">
+                  <thead><tr><th>Dia</th><th>Calorias</th></tr></thead>
+                  <tbody>
+                    {daysOfWeek.map(({ key, name }) => {
+                      const dayEntries = weeklyLog[key] || [];
+                      const dayTotal = dayEntries.reduce((sum, entry) => sum + entry.calories, 0);
+                      const isExpanded = !!expandedDays[key];
+                      return (
+                        <React.Fragment key={key}>
+                          <tr className="day-summary-row" onClick={() => setExpandedDays(prev => ({ ...prev, [key]: !isExpanded }))}>
+                            <td><span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>&#9656;</span> {name}</td>
+                            <td className="daily-calorie-cell"><strong>{Math.round(dayTotal)}</strong><span className="daily-goal-text">/ {bmrResults[selectedGoal]} kcal</span></td>
+                          </tr>
+                          {isExpanded && (
+                            dayEntries.length > 0 ? (
+                              dayEntries.map((meal, index) => (
+                                <tr key={`${key}-${index}`} className="meal-entry-row">
+                                  <td>
+                                    <div className="meal-info">
+                                      <span className="meal-name">{meal.name}</span>
+                                      <span className="meal-time">{meal.time}</span>
+                                    </div>
+                                  </td>
+                                  <td className="meal-actions-cell">
+                                    <span>{Math.round(meal.calories)} kcal</span>
+                                    <div className="meal-actions">
+                                      <button className="move-btn" onClick={(e) => { e.stopPropagation(); handleMoveMeal(key, index, 'up'); }} disabled={index === 0}>&#8593;</button>
+                                      <button className="move-btn" onClick={(e) => { e.stopPropagation(); handleMoveMeal(key, index, 'down'); }} disabled={index === dayEntries.length - 1}>&#8595;</button>
+                                      <button className="remove-btn" onClick={(e) => { e.stopPropagation(); handleRemoveMeal(key, index); }}>&times;</button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr className="meal-entry-row no-meals-row"><td colSpan={2}><p className="no-meals-text">Nenhuma refeição registrada.</p></td></tr>
+                            )
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
       )}
-      
     </div>
   );
 };
 
 
-// --- App Entry Point ---
+// --- App Component (Authentication Manager) ---
 const App = () => {
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const getSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+        // Fetch initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setLoading(false);
-        };
-        getSession();
-        
+        });
+
+        // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            subscription?.unsubscribe();
+        };
     }, []);
-    
+
     if (loading) {
-      return <div className="loading-container"><div className="spinner"></div></div>
+        return <div className="loading-container"><div className="spinner"></div><p>Iniciando...</p></div>;
     }
 
-    if (session && session.user) {
-        return <NutriSnapApp user={session.user} />;
+    if (!session) {
+        return <AuthContainer />;
+    } else {
+        // Using key={session.user.id} ensures the component remounts on user change
+        return <NutriSnapApp key={session.user.id} user={session.user} />;
     }
-    
-    return <AuthContainer />;
 };
 
-const container = document.getElementById('root')!;
-const root = createRoot(container);
-root.render(<App />);
+// --- Render App ---
+const container = document.getElementById('root');
+if (container) {
+    const root = createRoot(container);
+    root.render(<App />);
+}
