@@ -554,13 +554,39 @@ const NutriSnapApp = ({ user }: { user: User }) => {
 
   const handleMoveMeal = (dayKey: string, mealIndex: number, direction: 'up' | 'down') => {
       setWeeklyLog(prevLog => {
-          const dayEntries = [...(prevLog[dayKey] || [])];
-          const targetIndex = direction === 'up' ? mealIndex - 1 : mealIndex + 1;
-          if (targetIndex < 0 || targetIndex >= dayEntries.length) {
-              return prevLog;
+          const newLog = JSON.parse(JSON.stringify(prevLog)); // Deep copy to prevent mutation
+          const dayEntries = newLog[dayKey];
+          const mealToMove = dayEntries[mealIndex];
+          const currentDayIndex = daysOfWeekOrder.indexOf(dayKey);
+
+          if (direction === 'up') {
+              if (mealIndex > 0) {
+                  // Move up within the same day
+                  [dayEntries[mealIndex], dayEntries[mealIndex - 1]] = [dayEntries[mealIndex - 1], dayEntries[mealIndex]];
+              } else {
+                  // Move to the previous day
+                  const prevDayIndex = currentDayIndex - 1;
+                  if (prevDayIndex >= 0) {
+                      const prevDayKey = daysOfWeekOrder[prevDayIndex];
+                      dayEntries.splice(mealIndex, 1); // Remove from current day
+                      newLog[prevDayKey].push(mealToMove); // Add to end of previous day
+                  }
+              }
+          } else { // direction === 'down'
+              if (mealIndex < dayEntries.length - 1) {
+                  // Move down within the same day
+                  [dayEntries[mealIndex], dayEntries[mealIndex + 1]] = [dayEntries[mealIndex + 1], dayEntries[mealIndex]];
+              } else {
+                  // Move to the next day
+                  const nextDayIndex = currentDayIndex + 1;
+                  if (nextDayIndex < daysOfWeekOrder.length) {
+                      const nextDayKey = daysOfWeekOrder[nextDayIndex];
+                      dayEntries.splice(mealIndex, 1); // Remove from current day
+                      newLog[nextDayKey].unshift(mealToMove); // Add to start of next day
+                  }
+              }
           }
-          [dayEntries[mealIndex], dayEntries[targetIndex]] = [dayEntries[targetIndex], dayEntries[mealIndex]];
-          return { ...prevLog, [dayKey]: dayEntries };
+          return newLog;
       });
   };
   
@@ -685,11 +711,17 @@ const NutriSnapApp = ({ user }: { user: User }) => {
         </div>
       )}
 
-      {activeTab === 'weekly' && (
-        <div className="weekly-tracker">
-          {!bmrResults ? (
-            <div className="placeholder-text">Calcule suas metas na aba "Calculadora TMB" para começar a acompanhar suas calorias semanais.</div>
-          ) : (
+      {activeTab === 'weekly' && (() => {
+        if (!bmrResults) {
+          return (
+            <div className="weekly-tracker">
+              <div className="placeholder-text">Calcule suas metas na aba "Calculadora TMB" para começar a acompanhar suas calorias semanais.</div>
+            </div>
+          );
+        }
+        
+        return (
+          <div className="weekly-tracker">
             <>
               <div className="weekly-summary-container">
                   <h4>Resumo da Semana</h4>
@@ -753,8 +785,8 @@ const NutriSnapApp = ({ user }: { user: User }) => {
                                   <td className="meal-actions-cell">
                                     <span>{Math.round(meal.calories)} kcal</span>
                                     <div className="meal-actions">
-                                      <button className="move-btn" onClick={(e) => { e.stopPropagation(); handleMoveMeal(key, index, 'up'); }} disabled={index === 0}>&#8593;</button>
-                                      <button className="move-btn" onClick={(e) => { e.stopPropagation(); handleMoveMeal(key, index, 'down'); }} disabled={index === dayEntries.length - 1}>&#8595;</button>
+                                      <button className="move-btn" onClick={(e) => { e.stopPropagation(); handleMoveMeal(key, index, 'up'); }} disabled={key === 'monday' && index === 0}>&#8593;</button>
+                                      <button className="move-btn" onClick={(e) => { e.stopPropagation(); handleMoveMeal(key, index, 'down'); }} disabled={key === 'sunday' && index === dayEntries.length - 1}>&#8595;</button>
                                       <button className="remove-btn" onClick={(e) => { e.stopPropagation(); handleRemoveMeal(key, index); }}>&times;</button>
                                     </div>
                                   </td>
@@ -771,9 +803,9 @@ const NutriSnapApp = ({ user }: { user: User }) => {
                 </table>
               </div>
             </>
-          )}
-        </div>
-      )}
+          </div>
+        );
+      })()}
     </div>
   );
 };

@@ -677,9 +677,9 @@ header p {
 }
 
 .meal-actions-cell {
-    width: 1px;
-    white-space: nowrap;
-    text-align: right;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .move-btn {
