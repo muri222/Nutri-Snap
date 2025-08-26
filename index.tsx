@@ -1,6 +1,8 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { GoogleGenAI, Type } from "@google/genai";
+// A importação da GoogleGenAI não é mais necessária no frontend para a análise.
+import { Type } from "@google/genai";
 
 // --- Type Interfaces ---
 interface Ingredient {
@@ -86,12 +88,13 @@ const NutriSnapApp = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  let ai: GoogleGenAI;
-  try {
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-  } catch (e) {
-    console.error(e);
-  }
+  // A inicialização da API é removida do frontend.
+  // let ai: GoogleGenAI;
+  // try {
+  //   ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+  // } catch (e) {
+  //   console.error(e);
+  // }
 
   // --- Effects ---
   useEffect(() => {
@@ -202,33 +205,34 @@ const NutriSnapApp = () => {
   };
 
   const handleAnalyze = async () => {
-    if (!imageSrc || !ai) {
-      setError(!imageSrc ? "Por favor, tire uma foto ou envie uma imagem." : "API não inicializada.");
+    if (!imageSrc) {
+      setError("Por favor, tire uma foto ou envie uma imagem.");
       return;
     }
     setLoading(true);
     setError(null);
     setAnalysisResult(null);
     try {
-      const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: { parts: [
-            { inlineData: { mimeType: 'image/jpeg', data: imageSrc.split(',')[1] } },
-            { text: `Analise a comida nesta imagem. Descrição do usuário: "${foodDescription || 'Nenhuma'}". Identifique o prato, estime o peso, e forneça os macros TOTAIS e detalhados por ingrediente. Responda apenas com o JSON formatado.` }
-          ]},
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: { foodName: { type: Type.STRING }, estimatedWeight: { type: Type.STRING }, calories: { type: Type.NUMBER }, protein: { type: Type.NUMBER }, carbs: { type: Type.NUMBER }, fat: { type: Type.NUMBER },
-                    ingredients: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, calories: { type: Type.NUMBER }, protein: { type: Type.NUMBER }, carbs: { type: Type.NUMBER }, fat: { type: Type.NUMBER } }, required: ["name", "calories", "protein", "carbs", "fat"] } } },
-                required: ["foodName", "estimatedWeight", "calories", "protein", "carbs", "fat", "ingredients"]
-            }
-          }
+      // Chamada para a nossa nova Serverless Function
+      const apiResponse = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageSrc, foodDescription }),
       });
-      setAnalysisResult(JSON.parse(response.text.trim()));
-    } catch (e) {
-      setError("Ocorreu um erro ao analisar a imagem. Tente novamente.");
+
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json();
+        throw new Error(errorData.error || 'Failed to analyze image');
+      }
+
+      const resultData = await apiResponse.json();
+      setAnalysisResult(resultData);
+
+    } catch (e: any) {
+      console.error(e);
+      setError(`Ocorreu um erro ao analisar a imagem: ${e.message || 'Tente novamente.'}`);
     } finally {
       setLoading(false);
     }
@@ -369,6 +373,39 @@ const NutriSnapApp = () => {
   );
 };
 
+// --- Reusable ProgressBar Component ---
+interface ProgressBarProps {
+    label: string;
+    current: number;
+    total: number;
+    unit: string;
+}
+
+const ProgressBar: React.FC<ProgressBarProps> = ({ label, current, total, unit }) => {
+    const percentage = total > 0 ? Math.min((current / total) * 100, 100) : 0;
+    const isOver = current > total;
+
+    return (
+        <div className="progress-bar-container">
+            <div className="progress-labels">
+                <span>{label}</span>
+                <span>{Math.round(current)}{unit} / {total}{unit}</span>
+            </div>
+            <div className="progress-track">
+                <div
+                    className={`progress-fill ${isOver ? 'over-limit' : ''}`}
+                    style={{ width: `${percentage}%` }}
+                    role="progressbar"
+                    aria-valuenow={current}
+                    aria-valuemin={0}
+                    aria-valuemax={total}
+                    aria-label={`${label} progress`}
+                ></div>
+            </div>
+        </div>
+    );
+};
+
 
 // --- Weekly Tracker Component (for performance and organization) ---
 interface WeeklyTrackerProps {
@@ -466,7 +503,35 @@ const WeeklyTracker: React.FC<WeeklyTrackerProps> = ({ bmrResults, initialGoal, 
             <div className="detailed-breakdown"><h4>Registro Diário</h4><table className="breakdown-table weekly-log-table"><thead><tr><th>Dia</th><th>Calorias</th><th>P (g)</th><th>C (g)</th><th>G (g)</th></tr></thead><tbody>{daysOfWeek.map((day, dayIndex) => {const dayLog = initialLog[day.key] || [];const dayTotals = dayLog.reduce((acc, entry) => ({ calories: acc.calories + entry.calories, protein: acc.protein + entry.protein, carbs: acc.carbs + entry.carbs, fat: acc.fat + entry.fat }), { calories: 0, protein: 0, carbs: 0, fat: 0 });const isExpanded = !!expandedDays[day.key];return (<React.Fragment key={day.key}><tr className="day-summary-row" onClick={() => toggleDayExpansion(day.key)}><td><span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>&#9656;</span>{day.name}</td><td className="daily-calorie-cell">{Math.round(dayTotals.calories)}<span className="daily-goal-text"> de {dailyMacros.calories}</span></td><td>{dayTotals.protein.toFixed(1)}</td><td>{dayTotals.carbs.toFixed(1)}</td><td>{dayTotals.fat.toFixed(1)}</td></tr>{isExpanded && (dayLog.length > 0 ? (dayLog.map((entry, index) => (<tr key={`${day.key}-${index}`} className="meal-entry-row"><td><div className="meal-info"><span className="meal-time">{entry.time}</span><span className="meal-name">{entry.name}</span></div></td><td>{Math.round(entry.calories)}</td><td>{entry.protein.toFixed(1)}</td><td>{entry.carbs.toFixed(1)}</td><td><div className="fat-and-actions"><span>{entry.fat.toFixed(1)}</span><div className="meal-actions"><button onClick={() => handleMoveMealEntry(day.key, index, 'up')} disabled={dayIndex === 0 && index === 0} className="move-btn" title="Mover para cima">&#9650;</button><button onClick={() => handleMoveMealEntry(day.key, index, 'down')} disabled={dayIndex === daysOfWeek.length - 1 && index === dayLog.length - 1} className="move-btn" title="Mover para baixo">&#9660;</button><button onClick={() => handleRemoveMealEntry(day.key, index)} className="remove-btn" title="Remover refeição">&times;</button></div></div></td></tr>))) : (<tr className="no-meals-row"><td colSpan={5}><p className="no-meals-text">Nenhuma refeição registrada.</p></td></tr>))}</React.Fragment>)})}</tbody></table></div>
             <div className="weekly-summary-container">
                 <div className="weekly-summary"><div className="summary-card consumed"><h4>Total Consumido</h4><p><strong>{Math.round(consumed.calories).toLocaleString('pt-BR')}</strong> kcal</p><span>{consumed.protein.toFixed(1)}g P / {consumed.carbs.toFixed(1)}g C / {consumed.fat.toFixed(1)}g G</span></div><div className="summary-card remaining"><h4>Restante</h4><p><strong>{Math.round(remaining.calories).toLocaleString('pt-BR')}</strong> kcal</p><span>{remaining.protein.toFixed(1)}g P / {remaining.carbs.toFixed(1)}g C / {remaining.fat.toFixed(1)}g G</span></div></div>
-                <div className="daily-goal-display"><h4>Resumo do Dia Atual</h4><div className="macros"><div className="macro-card"><h3>Calorias</h3><span className="value">{Math.round(todayConsumed.calories).toLocaleString('pt-BR')} / {dailyMacros.calories.toLocaleString('pt-BR')}</span></div><div className="macro-card"><h3>Proteína</h3><span className="value">{todayConsumed.protein.toFixed(0)}g / {dailyMacros.protein}g</span></div><div className="macro-card"><h3>Carbs</h3><span className="value">{todayConsumed.carbs.toFixed(0)}g / {dailyMacros.carbs}g</span></div><div className="macro-card"><h3>Gordura</h3><span className="value">{todayConsumed.fat.toFixed(0)}g / {dailyMacros.fat}g</span></div></div></div>
+                <div className="daily-goal-display">
+                    <h4>Resumo do Dia Atual</h4>
+                    <div className="progress-bars-grid">
+                        <ProgressBar
+                            label="Calorias"
+                            current={todayConsumed.calories}
+                            total={dailyMacros.calories}
+                            unit="kcal"
+                        />
+                        <ProgressBar
+                            label="Proteína"
+                            current={todayConsumed.protein}
+                            total={dailyMacros.protein}
+                            unit="g"
+                        />
+                        <ProgressBar
+                            label="Carboidratos"
+                            current={todayConsumed.carbs}
+                            total={dailyMacros.carbs}
+                            unit="g"
+                        />
+                        <ProgressBar
+                            label="Gordura"
+                            current={todayConsumed.fat}
+                            total={dailyMacros.fat}
+                            unit="g"
+                        />
+                    </div>
+                </div>
             </div>
         </div>
     )
