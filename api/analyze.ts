@@ -21,7 +21,7 @@ export default async function handler(req: any, res: any) {
         model: 'gemini-2.5-flash',
         contents: { parts: [
           { inlineData: { mimeType: 'image/jpeg', data: imageSrc.split(',')[1] } },
-          { text: `Analise a comida nesta imagem. Descrição do usuário: "${foodDescription || 'Nenhuma'}". Identifique o prato, estime o peso, e forneça os macros TOTAIS e detalhados por ingrediente. Responda apenas com o JSON formatado.` }
+          { text: `Analise a comida nesta imagem. Descrição do usuário: "${foodDescription || 'Nenhuma'}". Identifique o prato, estime o peso, e forneça os macros TOTAIS e detalhados por ingrediente. Os nomes dos ingredientes e do prato principal devem estar em português do Brasil. Responda apenas com o JSON formatado.` }
         ]},
         config: {
           responseMimeType: "application/json",
