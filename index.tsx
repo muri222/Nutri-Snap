@@ -128,6 +128,12 @@ const NutriSnapApp = () => {
       localStorage.setItem('weeklyLog', JSON.stringify(weeklyLog));
   }, [bmrResults, weeklyLog]);
 
+  useEffect(() => {
+    if (videoRef.current && stream) {
+        videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
   const cleanupCamera = () => {
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
@@ -146,11 +152,19 @@ const NutriSnapApp = () => {
     setAnalysisResult(null);
     setImageSrc(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (videoRef.current) videoRef.current.srcObject = stream;
-      setStream(stream);
+      // Try to get the rear camera first
+      const newStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      setStream(newStream);
     } catch (err) {
-      setError("Não foi possível acessar a câmera. Verifique as permissões.");
+      console.error("Could not get environment camera:", err);
+      try {
+        // Fallback to any available camera if the rear one fails
+        const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setStream(newStream);
+      } catch (fallbackErr) {
+        console.error("Could not get any camera:", fallbackErr);
+        setError("Não foi possível acessar a câmera. Verifique as permissões do seu navegador e tente novamente.");
+      }
     }
   };
   
