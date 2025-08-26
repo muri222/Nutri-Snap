@@ -206,6 +206,28 @@ const AuthContainer = () => {
     }
 };
 
+// --- ProgressBar Component ---
+const ProgressBar = ({ label, currentValue, goalValue, unit }: { label: string, currentValue: number, goalValue: number, unit: string }) => {
+    const percentage = goalValue > 0 ? (currentValue / goalValue) * 100 : 0;
+    const displayPercentage = Math.min(percentage, 100);
+    const isOverLimit = percentage > 100;
+
+    return (
+        <div className="progress-bar-container">
+            <div className="progress-labels">
+                <span>{label}</span>
+                <span>{Math.round(currentValue)} / {Math.round(goalValue)} {unit}</span>
+            </div>
+            <div className="progress-track">
+                <div
+                    className={`progress-fill ${isOverLimit ? 'over-limit' : ''}`}
+                    style={{ width: `${displayPercentage}%` }}
+                />
+            </div>
+        </div>
+    );
+};
+
 
 // --- Main Application Component ---
 const NutriSnapApp = ({ user }: { user: User }) => {
@@ -344,6 +366,44 @@ const NutriSnapApp = ({ user }: { user: User }) => {
   useEffect(() => {
     return () => cleanupCamera();
   }, [stream]);
+
+  // --- Calculations for Weekly Tracker ---
+  const weeklyTrackerCalculations = React.useMemo(() => {
+    if (!bmrResults) return null;
+
+    const dailyGoal = bmrResults[selectedGoal];
+    const weeklyGoal = dailyGoal * 7;
+
+    const totalWeeklyConsumed = Object.values(weeklyLog).flat().reduce((sum, meal) => sum + meal.calories, 0);
+
+    const d = new Date().getDay();
+    const todayIndex = d === 0 ? 6 : d - 1;
+    const todayKey = daysOfWeekOrder[todayIndex];
+    const todayEntries = weeklyLog[todayKey] || [];
+    
+    const todayTotals = todayEntries.reduce((acc, entry) => ({
+        calories: acc.calories + entry.calories,
+        protein: acc.protein + entry.protein,
+        carbs: acc.carbs + entry.carbs,
+        fat: acc.fat + entry.fat
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+    // Protein: 30%, Carbs: 40%, Fat: 30%
+    const proteinGoal = (dailyGoal * 0.30) / 4;
+    const carbsGoal = (dailyGoal * 0.40) / 4;
+    const fatGoal = (dailyGoal * 0.30) / 9;
+
+    return {
+      dailyGoal,
+      weeklyGoal,
+      totalWeeklyConsumed,
+      todayTotals,
+      proteinGoal,
+      carbsGoal,
+      fatGoal
+    };
+  }, [bmrResults, selectedGoal, weeklyLog]);
+
 
   // --- Handlers ---
   const handleStartCamera = async () => {
@@ -621,12 +681,36 @@ const NutriSnapApp = ({ user }: { user: User }) => {
       
       {activeTab === 'weekly' && (
           <div className="weekly-tracker">
-              {!bmrResults ? (
+              {!bmrResults || !weeklyTrackerCalculations ? (
                   <div className="placeholder-text">
                       <p>Calcule sua TMB na aba "Calculadora TMB" para ver seu progresso semanal e metas de calorias.</p>
                   </div>
               ) : (
                   <>
+                      <div className="weekly-summary-container">
+                          <div className="weekly-summary">
+                              <div className="summary-card consumed">
+                                  <h4>Consumidas na Semana</h4>
+                                  <p><strong>{Math.round(weeklyTrackerCalculations.totalWeeklyConsumed)}</strong> kcal</p>
+                              </div>
+                              <div className="summary-card remaining">
+                                  <h4>Restantes na Semana</h4>
+                                  <p><strong>{Math.round(weeklyTrackerCalculations.weeklyGoal - weeklyTrackerCalculations.totalWeeklyConsumed)}</strong> kcal</p>
+                                  <span>Meta: {weeklyTrackerCalculations.weeklyGoal} kcal</span>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      <div className="daily-goal-display">
+                          <h4>Progresso do Dia</h4>
+                          <div className="progress-bars-grid">
+                              <ProgressBar label="Calorias" currentValue={weeklyTrackerCalculations.todayTotals.calories} goalValue={weeklyTrackerCalculations.dailyGoal} unit="kcal" />
+                              <ProgressBar label="Proteínas" currentValue={weeklyTrackerCalculations.todayTotals.protein} goalValue={weeklyTrackerCalculations.proteinGoal} unit="g" />
+                              <ProgressBar label="Carboidratos" currentValue={weeklyTrackerCalculations.todayTotals.carbs} goalValue={weeklyTrackerCalculations.carbsGoal} unit="g" />
+                              <ProgressBar label="Gorduras" currentValue={weeklyTrackerCalculations.todayTotals.fat} goalValue={weeklyTrackerCalculations.fatGoal} unit="g" />
+                          </div>
+                      </div>
+
                       <div className="daily-goal-display">
                           <h4>Sua Meta Diária</h4>
                           <div className="input-group">
