@@ -227,7 +227,7 @@ const NutriSnapApp = ({ user }: { user: User }) => {
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [activityLevel, setActivityLevel] = useState('1.2');
-  const [weightChangeRate, setWeightChangeRate] = useState('0.5');
+  const [weightChangeRate, setWeightChangeRate] = useState('0.5'); // Re-added state
   const [bmrResults, setBmrResults] = useState<BMRResults | null>(null);
     
   // States for Weekly Tracker
@@ -444,7 +444,8 @@ const NutriSnapApp = ({ user }: { user: User }) => {
       setError(null);
       let bmr = (gender === 'male') ? (10 * weightNum + 6.25 * heightNum - 5 * ageNum + 5) : (10 * weightNum + 6.25 * heightNum - 5 * ageNum - 161);
       const tdee = bmr * parseFloat(activityLevel);
-      const calorieAdjustment = parseFloat(weightChangeRate) * 500;
+      // 1kg of fat ~ 7000 kcal. 1kg/week ~ 1000 kcal/day deficit.
+      const calorieAdjustment = parseFloat(weightChangeRate) * 1000;
       setBmrResults({ bmr: Math.round(bmr), maintain: Math.round(tdee), lose: Math.round(tdee - calorieAdjustment), gain: Math.round(tdee + calorieAdjustment) });
   }
   
@@ -559,13 +560,20 @@ const NutriSnapApp = ({ user }: { user: User }) => {
       {activeTab === 'bmr' && (
         <div className="bmr-calculator">
             <form className="bmr-form" onSubmit={handleCalculateBMR}>
+              <div className="input-group">
+                <label>Gênero</label>
+                <div className="radio-group">
+                    <label><input type="radio" name="gender" value="male" checked={gender === 'male'} onChange={(e) => setGender(e.target.value)}/> Masculino</label>
+                    <label><input type="radio" name="gender" value="female" checked={gender === 'female'} onChange={(e) => setGender(e.target.value)}/> Feminino</label>
+                </div>
+              </div>
               <div className="form-grid">
-                <div className="input-group"><label htmlFor="gender">Gênero</label><div className="radio-group"><label><input type="radio" name="gender" value="male" checked={gender === 'male'} onChange={(e) => setGender(e.target.value)}/> Masculino</label><label><input type="radio" name="gender" value="female" checked={gender === 'female'} onChange={(e) => setGender(e.target.value)}/> Feminino</label></div></div>
                 <div className="input-group"><label htmlFor="age">Idade</label><input id="age" type="number" value={age} onChange={(e) => setAge(e.target.value)} placeholder="ex: 25" required/></div>
                 <div className="input-group"><label htmlFor="weight">Peso (kg)</label><input id="weight" type="number" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="ex: 70" required/></div>
                 <div className="input-group"><label htmlFor="height">Altura (cm)</label><input id="height" type="number" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="ex: 175" required/></div>
               </div>
               <div className="input-group"><label htmlFor="activityLevel">Nível de Atividade</label><select id="activityLevel" value={activityLevel} onChange={(e) => setActivityLevel(e.target.value)}><option value="1.2">Sedentário (pouco ou nenhum exercício)</option><option value="1.375">Levemente ativo (exercício 1-3 dias/sem.)</option><option value="1.55">Moderadamente ativo (exercício 3-5 dias/sem.)</option><option value="1.725">Muito ativo (exercício 6-7 dias/sem.)</option><option value="1.9">Extremamente ativo (trabalho físico/exercício intenso)</option></select></div>
+              <div className="input-group"><label htmlFor="weightChangeRate">Ritmo de Alteração de Peso (kg/semana)</label><select id="weightChangeRate" value={weightChangeRate} onChange={(e) => setWeightChangeRate(e.target.value)}><option value="0.25">0.25 kg / semana</option><option value="0.5">0.5 kg / semana</option><option value="0.75">0.75 kg / semana</option><option value="1">1 kg / semana</option></select></div>
               <button type="submit" className="btn btn-primary">Calcular Metas</button>
             </form>
             
