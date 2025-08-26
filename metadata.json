@@ -1,0 +1,7 @@
+{
+  "name": "NutriSnap",
+  "description": "An AI-powered app that analyzes your meals from a photo to estimate calories and macronutrients.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
